@@ -3,7 +3,8 @@ library(sparklyr)
 library(tidyverse)
 
 master <- paste(Sys.getenv("SPARK_MASTER_HOST"), Sys.getenv("SPARK_MASTER_PORT"), sep = ":")
-dataset_path <- paste("/domino/datasets/local/",Sys.getenv("DOMINO_PROJECT_NAME"), sep = "")
+dataset_path <- paste(Sys.getenv("DOMINO_DATASETS_DIR"),Sys.getenv("DOMINO_PROJECT_NAME"), sep = "/")
+data_path <- paste(dataset_path,"2013*.csv",sep = "/")
 url <- paste("spark://", master, sep = "")
 config <- spark_config()
 config$sparklyr.connect.enablehivesupport <- FALSE
@@ -12,14 +13,14 @@ config$sparklyr.connect.enablehivesupport <- FALSE
 # data set while using the 3.2GB / 6GB / 14GB data set. Comment during actual use
 
 # Driver memory for the 3.2GB / 6GB / 14GB data sets
-config$`sparklyr.shell.driver-memory` <- "4G"
+config$`sparklyr.shell.driver-memory` <- "6G"
 #Set the amount of Executor memory
-config$`sparklyr.shell.executor-memory` <- "16G"
+config$`sparklyr.shell.executor-memory` <- "12G"
 
 #Use run to execute the statements to get run time, sourcing the file won't print
 # run time for the different statements
 
-lppub_column_names <- c("POOL_ID", "LOAN_ID", "ACT_PERIOD", "CHANNEL", "SELLER", "SERVICER",
+lppub_column_names <- c("LOAN_ID", "ACT_PERIOD", "CHANNEL", "SELLER", "SERVICER",
                         "MASTER_SERVICER", "ORIG_RATE", "CURR_RATE", "ORIG_UPB", "ISSUANCE_UPB",
                         "CURRENT_UPB", "ORIG_TERM", "ORIG_DATE", "FIRST_PAY", "LOAN_AGE",
                         "REM_MONTHS", "ADJ_REM_MONTHS", "MATR_DT", "OLTV", "OCLTV",
@@ -48,16 +49,15 @@ lppub_column_names <- c("POOL_ID", "LOAN_ID", "ACT_PERIOD", "CHANNEL", "SELLER",
                         "ARM_CAP_STRUCTURE", "INITIAL_INTEREST_RATE_CAP", "PERIODIC_INTEREST_RATE_CAP",
                         "LIFETIME_INTEREST_RATE_CAP", "MARGIN", "BALLOON_INDICATOR",
                         "PLAN_NUMBER", "FORBEARANCE_INDICATOR", "HIGH_LOAN_TO_VALUE_HLTV_REFINANCE_OPTION_INDICATOR",
-                        "DEAL_NAME", "RE_PROCS_FLAG", "ADR_TYPE", "ADR_COUNT", "ADR_UPB")
+                        "DEAL_NAME", "RE_PROCS_FLAG", "ADR_TYPE", "ADR_COUNT", "ADR_UPB", "DUMMY1","DUMMY2")
 
 #Use run to execute the statements to get run time, sourcing the file won't print
 # run time for the different statements
 
 #Connect to the Spark cluster
 options(sparklyr.log.console = TRUE)
-sc <- spark_connect(master=url, config=config, app_name="SparklyRDemo")
-
-system.time(perf_data <- spark_read_csv(sc, name = "perf_data", path='/domino/datasets/local/big-data-demo/2021Q1-sparklyr.csv', memory = FALSE, header = FALSE, delimiter = "|", columns = lppub_column_names))
+sc <- spark_connect(master=url, config=config, app_name = "SparkRDemo")
+system.time(perf_data <- spark_read_csv(sc, name = "perf_data", path=data_path, memory = FALSE, header = FALSE, delimiter = "|", columns = lppub_column_names))
 
 
 # dplyr based query
@@ -80,7 +80,7 @@ system.time(local_mean_loan_age <- collect(mean_loan_age))
 View(local_mean_loan_age)
 
 # SQL query example, construct and run a SQL query
-sql_query = 'SELECT DISTINCT MASTER_SERVICER FROM perf_data'
+sql_query = 'SELECT DISTINCT SERVICER FROM perf_data'
 #Use the inbuilt DBI package to execute the query
 system.time(res <- DBI::dbGetQuery(sc, statement = sql_query))
 print(res)
